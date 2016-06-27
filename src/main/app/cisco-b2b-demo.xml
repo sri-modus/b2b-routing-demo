@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:quartz="http://www.mulesoft.org/schema/mule/quartz" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
+	xmlns:partner-manager="http://www.mulesoft.org/schema/mule/partner-manager" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/partner-manager http://www.mulesoft.org/schema/mule/partner-manager/current/mule-partner-manager.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/quartz http://www.mulesoft.org/schema/mule/quartz/current/mule-quartz.xsd">
+
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8085" doc:name="HTTP Listener Configuration"/>
+<!--     <partner-manager:config name="Partner_Manager__Configuration" apiKey="${pmc.apiKey}" tpmServiceAddress="${pmc.tpmServiceAddress}" trackerAddress="${pmc.trackerAddress}" environmentId="${pmc.environmentId}" doc:name="Partner_Manager__Configuration"/> -->
+<!--      <partner-manager:config-file-storage-custom name="Partner_Manager__Configuration" apiKey="a537f212f6d44317aa37279d48b7fd97" tpmServiceAddress="http://qa.modusbox.com/b2b/tpm/api" trackerAddress="http://qa.modusbox.com/b2b/tracker/api" environmentId="7025cf16-7581-49b3-b564-21564c1be2b1" flowName="cisco-b2b-persist-message" fileUrl="#[payload]" doc:name="Partner_Manager__Configuration"/> -->
+     <partner-manager:config-file-storage-custom name="Partner_Manager__Configuration" apiKey="${pmc.apiKey}" tpmServiceAddress="${pmc.tpmServiceAddress}" trackerAddress="${pmc.trackerAddress}" environmentId="${pmc.environmentId}" flowName="cisco-b2b-persist-message" fileUrl="#[payload]" doc:name="Partner_Manager__Configuration" />     
+<!--     <partner-manager:config-file-storage-amazon-s3 name="Partner_Manager__Configuration" apiKey="a537f212f6d44317aa37279d48b7fd97" tpmServiceAddress="http://qa.modusbox.com/b2b/tpm/api" trackerAddress="http://qa.modusbox.com/b2b/tracker/api" environmentId="7025cf16-7581-49b3-b564-21564c1be2b1" doc:name="Partner_Manager__Configuration" accessKeyId="AKIAJOWUBKURESLSVNIA" bucketName="b2b-e2e-test/test" region="us-west-2" secretKey="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"/> -->
+    <file:connector name="File" autoDelete="true" streaming="true" validateConnections="true" doc:name="File"/>
+    <http:request-config name="HTTP_Request_Configuration" doc:name="HTTP Request Configuration"/>
+    <file:connector name="FileRead" autoDelete="false" streaming="true" validateConnections="true" doc:name="File"/>
+    <http:request-config name="HTTPS_Request_Configuration1" protocol="HTTPS" doc:name="HTTP Request Configuration"/>
+    <quartz:connector name="Quartz" validateConnections="true" doc:name="Quartz"/>
+    <flow name="cisco-b2b-receive">
+        <file:inbound-endpoint path="file-in" responseTimeout="10000" doc:name="File" connector-ref="File"/>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <copy-properties propertyName="*" doc:name="Copy Properties"/>
+        <set-property propertyName="fileExtension" value="#[org.apache.commons.io.FilenameUtils.getExtension(message.inboundProperties.'originalFileName')]" doc:name="fileExtension"/>
+        <set-property propertyName="messageType" value="#[message.inboundProperties.'originalFileName'.split('_')[0]]" doc:name="messageType"/>
+        <set-property propertyName="partnerName" value="#[message.inboundProperties.'originalFileName'.split('_')[1]]" doc:name="partnerName"/>
+        <set-variable variableName="trackingMetadata" value="#[['label': 'Receive', 'outboundProperties': message.outboundProperties]]" doc:name="trackingMetadata"/>
+        <partner-manager:track-transmission config-ref="Partner_Manager__Configuration" partnerIdentifier="#[message.outboundProperties.partnerName]" direction="INBOUND" filename="#[message.outboundProperties.fileName]" transport="FILE" file-ref="#[payload]" doc:name="Track Transmission">
+            <partner-manager:metadata ref="#[flowVars.trackingMetadata]"/>
+        </partner-manager:track-transmission>
+        <set-property propertyName="b2bTransmissionSession" value="#[flowVars.b2bTransmissionSession]" doc:name="b2bSession"/>
+        <vm:outbound-endpoint exchange-pattern="one-way" path="resolve" doc:name="VM"/>
+    </flow>
+    <flow name="cisco-b2b-resolve">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="resolve" doc:name="VM"/>
+        <enricher target="#[variable:route]" doc:name="Message Enricher">
+            <partner-manager:resolve-routes config-ref="Partner_Manager__Configuration" messageType="#[message.inboundProperties.messageType]" partnerIdentifier="#[message.inboundProperties.partnerName]" transportType="FTPS" partnerIdentifierType="PARTNER" standard="#[message.inboundProperties.fileExtension.toUpperCase()]" doc:name="Resolve Route"/>
+        </enricher>
+        <copy-properties propertyName="*" doc:name="Copy Properties"/>
+        <set-property propertyName="mapId" value="#[flowVars.route[0]['sourceChannel']['documentMapId']]" doc:name="mapId"/>
+        <set-property propertyName="sendEndpointId" value="#[flowVars.route[0]['targetChannel']['endpointId']]" doc:name="sendEndpointId"/>
+        <set-variable variableName="trackingMetadata" value="#[['label': 'Resolve']]" doc:name="trackingMetadata"/>
+        <partner-manager:track-business-document config-ref="Partner_Manager__Configuration" partnerIdentifier="#[message.outboundProperties.partnerName]" document="#[payload]" direction="INBOUND" transmissionSession-ref="#[message.outboundProperties.b2bTransmissionSession]" doc:name="Track incoming message" file-ref="#[payload]" standard="CSV">
+            <partner-manager:metadata ref="#[flowVars.trackingMetadata]"/>
+        </partner-manager:track-business-document>
+        <vm:outbound-endpoint exchange-pattern="one-way" path="normalize" doc:name="VM"/>
+    </flow>
+    <flow name="cisco-b2b-normalize">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="normalize" doc:name="VM"/>
+        <logger level="INFO" doc:name="Logger"/>
+        <logger message="#['mapId: ' + message.inboundProperties.mapId]" level="INFO" doc:name="Logger"/>
+        <enricher target="#[variable:mapInfo]" doc:name="Message Enricher">
+            <partner-manager:search config-ref="Partner_Manager__Configuration" query="id=='#[message.inboundProperties.mapId]'" resource="DOCUMENT_MAP" doc:name="Get Map"/>
+        </enricher>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <set-property propertyName="Content-Type" value="application/csv" doc:name="Property"/>
+		<choice doc:name="Is DW or XSLT">
+            <when expression="#[flowVars.mapInfo.documentMaps[0].mappingType=='XSLT']">
+                <flow-ref name="dynXSLTSubFlow" doc:name="dynXSLTSubFlow"/>
+            </when>
+            <when expression="#[flowVars.mapInfo.documentMaps[0].mappingType=='DATAWEAVE']">
+                <set-payload value="#[dw(flowVars.mapInfo.documentMaps[0].mappingScript,'application/xml')]" mimeType="application/xml" doc:name="Dataweave"/>
+            </when>
+            <otherwise>
+                <logger level="INFO" doc:name="Logger"/>
+            </otherwise>
+        </choice>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <copy-properties propertyName="*" doc:name="Copy Properties"/>
+        <set-variable variableName="trackingMetadata" value="#[['label': 'Normalize']]" doc:name="trackingMetadata"/>
+        <partner-manager:track-business-document config-ref="Partner_Manager__Configuration" partnerIdentifier="#[message.outboundProperties.partnerName]" direction="INBOUND" standard="XML" file-ref="#[payload]" document="#[payload]" transmissionSession-ref="#[message.outboundProperties.b2bTransmissionSession]" doc:name="Track canonical message">
+            <partner-manager:metadata ref="#[flowVars.trackingMetadata]"/>
+        </partner-manager:track-business-document>
+ 
+        <vm:outbound-endpoint exchange-pattern="one-way" path="route" doc:name="VM"/>
+    </flow>
+    <sub-flow name="dynXSLTSubFlow">
+        <choice doc:name="Is XML or CSV">
+            <when expression="#[message.inboundProperties['fileExtention']=='csv']">
+                <set-property propertyName="Content-Type" value="application/csv" doc:name="Property"/>
+                <dw:transform-message doc:name="Transform Message">
+                    <dw:input-payload/>
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/xml 
+---
+{
+	Import: {
+		(
+			payload map (
+				Row: $
+			)
+		)
+	}
+}]]></dw:set-payload>
+                </dw:transform-message>
+            </when>
+            <when expression="#[message.inboundProperties['fileExtention']=='xml']">
+                <logger level="INFO" doc:name="Logger"/>
+            </when>
+        </choice>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <set-variable variableName="xslt" value="#[flowVars.mapInfo.documentMaps[0].mappingScript]" doc:name="Variable"/>
+        <custom-transformer class="com.cisco.gslo.transformer.DynamicXSLTTransformer" doc:name="Java">
+            <spring:property name="variableName" value="script"/>
+        </custom-transformer>
+        <object-to-string-transformer mimeType="application/xml" doc:name="Object to String"/>
+    </sub-flow>
+    
+    
+    <flow name="cisco-b2b-route">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="route" doc:name="VM"/>
+        <enricher target="#[variable:sendEndpoint]" doc:name="Message Enricher">
+            <partner-manager:search config-ref="Partner_Manager__Configuration" query="id=='#[message.inboundProperties.sendEndpointId]'" resource="ENDPOINT" doc:name="Get Endpoint"/>
+        </enricher>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+        <set-variable variableName="partnerName" value="#[message.inboundProperties.partnerName]" doc:name="partnerName"/>
+        <set-variable variableName="b2bTransmissionSession" value="#[message.inboundProperties.b2bTransmissionSession]" doc:name="b2bTransmissionSession"/>
+        <copy-properties propertyName="*" doc:name="Property"/>
+        <http:request config-ref="HTTP_Request_Configuration" path="#[flowVars.sendEndpoint.endpoints[0].transportOptions.operation.path]" method="POST" doc:name="HTTP" host="#[flowVars.sendEndpoint.endpoints[0].transportOptions.operation.host]" port="#[flowVars.sendEndpoint.endpoints[0].transportOptions.operation.port]"/>
+        <set-variable variableName="trackingMetadata" value="#[['label': 'Route']]" doc:name="trackingMetadata"/>
+        <partner-manager:track-business-document config-ref="Partner_Manager__Configuration" partnerIdentifier="#[flowVars.partnerName]" direction="INBOUND" standard="XML" file-ref="#[payload]" document="#[payload]" doc:name="Track Result">
+            <partner-manager:metadata ref="#[flowVars.trackingMetadata]"/>
+        </partner-manager:track-business-document>
+    </flow>
+    <flow name="cisco-b2b-3B3-api">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/3B3/" doc:name="HTTP"/>
+        <logger message="Made it here!" level="INFO" doc:name="Logger"/>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <copy-properties propertyName="*" doc:name="Property"/>
+        <logger level="INFO" doc:name="Logger" message="#[payload]"/>
+    </flow>
+    <flow name="cisco-b2b-persist-message">
+        <file:inbound-endpoint path="persist-in" connector-ref="File" responseTimeout="10000" doc:name="File"/>
+        <set-variable variableName="messageId" value="#[java.util.UUID.randomUUID()]" doc:name="messageId"/>
+        <file:outbound-endpoint path="persisted-messages" connector-ref="File" responseTimeout="10000" doc:name="File" outputPattern="#[flowVars.messageId].txt"/>
+        <set-payload value="#['http://localhost:8085/persistedmessages/' + flowVars.messageId]" doc:name="Set Payload"/>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="cisco-b2b-retrieve-persisted-message">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/persistedmessages/{messageId}/" doc:name="HTTP"/>
+        <set-variable variableName="fileName" value="#['persisted-messages/' + message.inboundProperties.'http.uri.params'.messageId + '.txt']" doc:name="fileName"/>
+        <set-payload value="#[groovy: new java.io.FileInputStream(new java.io.File(fileName))]" doc:name="Set Payload"/>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <logger level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="cisco-b2b-demoFlow">
+        <quartz:inbound-endpoint jobName="pollForReplay" repeatInterval="10000" responseTimeout="10000" doc:name="Quartz">
+            <quartz:event-generator-job/>
+        </quartz:inbound-endpoint>
+        <flow-ref name="cisco-b2b-replay-transactions" doc:name="cisco-b2b-replay-transactions"/>
+    </flow>
+    <flow name="cisco-b2b-replay-transactions">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/replay/" doc:name="HTTP"/>
+        <partner-manager:start-transactions-replay config-ref="Partner_Manager__Configuration"  doc:name="Partner Manager"/>
+        <foreach doc:name="For Each">
+            <enricher target="variable:replayResult" doc:name="Message Enricher">
+                <flow-ref name="cisco-b2b-sub-replay-transaction" doc:name="cisco-b2b-sub-replay-transaction"/>
+            </enricher>
+            <partner-manager:end-transactions-replay config-ref="Partner_Manager__Configuration" doc:name="Partner Manager">
+                <partner-manager:transaction-ids>
+                    <partner-manager:transaction-id>#[payload.id]</partner-manager:transaction-id>
+                </partner-manager:transaction-ids>
+            </partner-manager:end-transactions-replay>
+        </foreach>
+        <json:object-to-json-transformer doc:name="Object to JSON"/>
+    </flow>
+    <sub-flow name="cisco-b2b-sub-replay-transaction">
+        <logger message="#['transaction:' + payload]" level="INFO" doc:name="Logger"/>
+        <set-variable variableName="transactionId" value="#[payload.id]" doc:name="transactionId"/>
+        <enricher target="variable:originalMessageDetails" doc:name="Message Enricher">
+            <flow-ref name="cisco-b2b-sub-get-original-message-properties" doc:name="Get Original Message Properties"/>
+        </enricher>
+        <http:request config-ref="HTTP_Request_Configuration" path="#[flowVars.originalMessageDetails.payloadPath]" method="GET" host="localhost" port="8085" doc:name="Get Original Payload"/>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <message-properties-transformer doc:name="Restore Original Message Properties">
+            <add-message-property key="messageType" value="#[flowVars.originalMessageDetails.outboundProperties.messageType]"/>
+            <add-message-property key="fileExtension" value="#[flowVars.originalMessageDetails.outboundProperties.fileExtension]"/>
+            <add-message-property key="partnerName" value="#[flowVars.originalMessageDetails.outboundProperties.partnerName]"/>
+            <add-message-property key="b2bTransmissionSession" value="#[String.format('{&quot;originalTransactionId&quot;:&quot;%1s&quot;, &quot;transactionId&quot;: &quot;%2s&quot;}', flowVars.transactionId, java.util.UUID.randomUUID())]"/>
+        </message-properties-transformer>
+        <vm:outbound-endpoint exchange-pattern="one-way" path="resolve" doc:name="Put back on Resolve Queue for re-processing"/>
+    </sub-flow>
+    <sub-flow name="cisco-b2b-sub-get-original-message-properties">
+        <set-variable variableName="trackingPath" value="#['/b2b/tracker/api/transactions/' + payload.id + '/events']" doc:name="trackingPath"/>
+        <http:request config-ref="HTTP_Request_Configuration" path="#[flowVars.trackingPath]" method="GET" host="${pmc.host}" port="80" doc:name="Get Transactions Events">
+            <http:request-builder>
+                <http:query-param paramName="apiKey" value="${pmc.apiKey}"/>
+                <http:query-param paramName="environmentId" value="${pmc.environmentId}"/>
+            </http:request-builder>
+        </http:request>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <json:json-to-object-transformer returnClass="java.util.HashMap[]" doc:name="JSON to Object"/>
+        <set-variable variableName="payloadPath" value="#[groovy: new java.net.URL(payload[0].fileUrl).getPath()]" doc:name="path for original payload"/>
+        <set-payload value="#[['outboundProperties' : payload[0].metadata.outboundProperties, 'payloadPath' : flowVars.payloadPath]]" doc:name="Set Payload"/>
+    </sub-flow>
+    <flow name="cisco-b2b-endpoints">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/endpoints/" doc:name="HTTP"/>
+        <partner-manager:search config-ref="Partner_Manager__Configuration" query="endpointType=='RECEIVE'" resource="ENDPOINT" doc:name="Partner Manager"/>
+        <json:object-to-json-transformer doc:name="Object to JSON"/>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="cisco-b2b-track-document">
+        <file:inbound-endpoint path="file-in-ou" responseTimeout="10000" doc:name="File" connector-ref="File"/>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <partner-manager:track-business-document config-ref="Partner_Manager__Configuration" partnerIdentifier="Fedex" document="#[payload]" filename="'myFile'" direction="INBOUND" standard="CSV" doc:name="Partner Manager"/>
+    </flow>
+ 
+</mule>
