@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:objectstore="http://www.mulesoft.org/schema/mule/objectstore" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/objectstore http://www.mulesoft.org/schema/mule/objectstore/current/mule-objectstore.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    <objectstore:config name="ObjectStore__Configuration" persistent="true" doc:name="ObjectStore: Configuration"/>
+     <spring:beans>
+        <spring:bean id="myListableObjectStore" class="org.mule.util.store.SimpleMemoryObjectStore"/>
+    </spring:beans>
+    <flow name="sendto-receive-flow">
+        <vm:inbound-endpoint exchange-pattern="one-way" path="retryQ" doc:name="VM"/>
+        <logger level="INFO" doc:name="Logger"/>
+        <copy-properties propertyName="*" doc:name="Property"/>
+        <set-property propertyName="counter" value="#[message.inboundProperties.'counter'==null?0:message.inboundProperties.'counter'+1]" doc:name="Property"/>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <choice doc:name="Choice">
+            <when expression="#[message.inboundProperties.'retrycount'&gt;message.outboundProperties.'counter']">
+                <enricher target="#[flowVars.output]" doc:name="Message Enricher">
+                    <flow-ref name="receive-file" doc:name="receive-file"/>
+                </enricher>
+                <logger message="#['count is:']#[message.outboundProperties.'counter']" level="INFO" doc:name="Logger"/>
+                <vm:outbound-endpoint exchange-pattern="one-way" path="retryQ" doc:name="VM"/>
+            </when>
+            <otherwise>
+                <logger message="retry count exhausted" level="INFO" doc:name="Logger"/>
+            </otherwise>
+        </choice>
+    </flow>
+    <flow name="performance-test-launcherFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/runtest" allowedMethods="GET" doc:name="HTTP"/>
+        <set-payload value="#[Thread.currentThread().getContextClassLoader().getResourceAsStream(&quot;testmessage.xml&quot;)]" doc:name="Set Payload"/>
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <copy-properties propertyName="*"  doc:name="Property"/>
+        <logger message="#['before queue'+payload]" level="INFO" doc:name="Logger"/>
+        <vm:outbound-endpoint exchange-pattern="one-way" path="retryQ" doc:name="VM"/>
+        <set-payload value="#['Message sent to queue']" doc:name="Set Payload"/>
+    </flow>
+</mule>
