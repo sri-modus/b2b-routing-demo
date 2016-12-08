@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ftps="http://www.mulesoft.org/schema/mule/ftps" xmlns:partner-manager="http://www.mulesoft.org/schema/mule/partner-manager" xmlns:as2="http://www.mulesoft.org/schema/mule/as2" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:x12-edi="http://www.mulesoft.org/schema/mule/x12-edi" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/x12-edi http://www.mulesoft.org/schema/mule/x12-edi/current/mule-x12-edi.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/as2 http://www.mulesoft.org/schema/mule/as2/current/mule-as2.xsd
+http://www.mulesoft.org/schema/mule/ftps http://www.mulesoft.org/schema/mule/ftps/current/mule-ftps.xsd
+http://www.mulesoft.org/schema/mule/partner-manager http://www.mulesoft.org/schema/mule/partner-manager/current/mule-partner-manager.xsd">
+    <flow name="mapsFlow_po_csv_json">
+        <dw:transform-message metadata:id="99457f22-f92d-425a-9e4f-4dac201cc8ac" doc:name="Transform Message">
+            <dw:input-payload doc:sample="list_csv.csv"/>
+            <dw:set-payload resource="classpath:po_csv_json.dwl"></dw:set-payload>
+        </dw:transform-message>
+    </flow>
+    <flow name="mapsFlow_po_xml_json">
+        <dw:transform-message metadata:id="458d5918-7515-4116-b9cf-afb9cae4bf89" doc:name="Transform Message">
+            <dw:input-payload doc:sample="PurchaseOrder.xml"/>
+            <dw:set-payload resource="classpath:po_xml_jason.dwl"/>
+        </dw:transform-message>
+    </flow>
+<!--     <flow name="mapsFlow"> -->
+<!--         <file:inbound-endpoint path="file-test-edi-map" connector-ref="File" responseTimeout="10000" doc:name="File"/> -->
+<!--         <byte-array-to-string-transformer doc:name="Byte Array to String"/> -->
+<!--         <x12-edi:read config-ref="X12_EDI_Config" doc:name="X12 EDI2"/> -->
+<!--         <dw:transform-message metadata:id="68ac052b-14e2-4ba5-bcba-a766834f0046" doc:name="Transform Message"> -->
+<!--             <dw:set-payload resource="classpath:edi_json.dwl"/> -->
+<!--         </dw:transform-message> -->
+<!--         <byte-array-to-string-transformer doc:name="Byte Array to String"/> -->
+<!--         <logger message="#[payload]" level="INFO" doc:name="Logger"/> -->
+<!--     </flow> -->
+</mule>
