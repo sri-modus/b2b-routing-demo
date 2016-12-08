@@ -24,7 +24,7 @@
         <!-- Reduce DM verbosity -->
         <AsyncLogger name="org.jetel" level="WARN"/>
         <AsyncLogger name="Tracking" level="WARN"/>
-        
+        <AsyncLogger name="com.modus" level="DEBUG"/>        
         <!--AsyncLogger name="httpclient.wire" level="ALL" /-->
 		<AsyncLogger name="com.modus" level="DEBUG"/>
         <AsyncRoot level="INFO">

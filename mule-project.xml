@@ -2,4 +2,7 @@
 <mule-project xmlns="http://www.mulesoft.com/tooling/project" runtimeId="org.mule.tooling.server.3.7.3.ee" schemaVersion="5.3.0.0">
     <name>cisco-b2b-demo</name>
     <description></description>
+    <muleExtension name="X12 EDI" qualifier="org.mule.tooling.ui.contribution.x12-edi.3.5.0"/>
+    <muleExtension name="AS2" qualifier="org.mule.tooling.ui.contribution.as2.3.5.3"/>
+    <muleExtension name="ObjectStore" qualifier="org.mule.tooling.ui.contribution.objectstore.3.6.0"/>
 </mule-project>
